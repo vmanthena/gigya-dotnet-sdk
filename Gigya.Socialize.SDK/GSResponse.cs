@@ -299,6 +299,14 @@ namespace Gigya.Socialize.SDK
             return this.data.Cast<T>();
         }
 
+        public T GetData<T>(string key, GSObject defaultValue) where T : class, new()
+        {
+            var data = this.data.GetObject(key, defaultValue);
+           return data?.Cast<T>() ?? default(T);
+        }
+
+
+
         public IDictionary<string, string> GetHeaders()
         {
             return this.headers;
