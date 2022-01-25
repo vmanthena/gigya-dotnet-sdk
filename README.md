@@ -7,6 +7,8 @@ The library makes it simple to integrate Gigya's service in your .NET applicatio
 
 ## Requirements
 [.NET](https://dotnet.microsoft.com/download/dotnet-framework) >= 4.5
+[netstandard](https://dotnet.microsoft.com/download/dotnet-framework) >= 2.0
+
 
 ## Download and Installation
 * Clone the repo.
