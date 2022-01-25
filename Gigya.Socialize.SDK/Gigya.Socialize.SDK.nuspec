@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+	<metadata>
+		<id>Gigya.Socialize.SDK</id>
+		<version>$version$</version>
+		<title>5.0.0.1</title>
+		<authors>Nitin V Manthena</authors>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<license type="expression">MIT</license>
+		<projectUrl>https://github.com/vmanthena/gigya-dotnet-sdk</projectUrl>
+		<repository type="git" url="https://github.com/vmanthena/gigya-dotnet-sdk.git" branch="main" />
+		<description>The .NET library provides C# interface for the Gigya API. The library makes it simple to integrate Gigya's service in your .NET application.</description>
+		<releaseNotes>SDK for communication with CIAM</releaseNotes>
+		<copyright>Copyright © Gigya 2010</copyright>
+		<tags>Gigya CIAM</tags>
+		<dependencies>
+			<group targetFramework=".NETStandard2.0">
+				<dependency  id="Newtonsoft.Json" version="[13.0.1)" exclude="native,compile,runtime,Build,Analyzers"/>
+				<dependency  id="System.Net.Http" version="[4.3.4)" exclude="native,compile,runtime,Build,Analyzers"/>
+				<dependency  id="NETStandard.Library" version="[1.6.0)" exclude="native,compile,runtime,Build,Analyzers"/>
+			</group>
+		</dependencies>
+	</metadata>
+</package>

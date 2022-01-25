@@ -102,7 +102,6 @@ namespace Gigya.Socialize.SDK
                 }
                 else
                 {
-                    //Trace.TraceWarning($"{key}: {kvp.Value}({kvp.Value.GetType().FullName}) found:");
                     this.Put(key, kvp.Value);
                 }
             }
@@ -1035,7 +1034,6 @@ namespace Gigya.Socialize.SDK
             {
                 foreach (var obj in jsonObj)
                 {
-                    Debug.WriteLine($"{obj.Key}:{obj.Value.GetType().FullName}");
                     if (obj.Value is Dictionary<string, object>)
                     {
                         this[obj.Key] = new JSONObject((Dictionary<string, object>)obj.Value);

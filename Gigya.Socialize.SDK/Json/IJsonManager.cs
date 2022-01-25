@@ -12,7 +12,5 @@
         T FromJson(string json);
         
         string ToJson(T data);
-
-        T DeepClone(T data);
     }
 }
