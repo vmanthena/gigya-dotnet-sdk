@@ -6,8 +6,8 @@ The .NET library provides C# interface for the Gigya API.
 The library makes it simple to integrate Gigya's service in your .NET application.
 
 ## Requirements
-[.NET](https://dotnet.microsoft.com/download/dotnet-framework) >= 4.5
-[netstandard](https://dotnet.microsoft.com/download/dotnet-framework) >= 2.0
+1. [.NET](https://dotnet.microsoft.com/download/dotnet-framework) >= 4.5
+2. [netstandard](https://dotnet.microsoft.com/download/dotnet-framework) >= 2.0
 
 
 ## Download and Installation
