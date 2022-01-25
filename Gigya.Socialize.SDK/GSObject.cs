@@ -732,18 +732,14 @@ namespace Gigya.Socialize.SDK
             {
                 if (val == null) return (T)val;
 
+                if (val is T tVal) return tVal;
+
                 Type t = typeof(T);
                 if (t == typeof(string))
                     val = val.ToString();
                 else if (val.GetType().IsPrimitive)
                 {
-                    try
-                    {
-
-                        var result = (T)val;
-                        return result;
-                    }
-                    catch { }
+                  
                     var st = val.ToString() ?? (default(T).ToString());
                     if (t == typeof(int))
                         val = int.Parse(st);
