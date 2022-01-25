@@ -5,7 +5,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Web.Script.Serialization;
+using System.Linq;
+
+using Gigya.Socialize.SDK.Json.Extensions;
 
 namespace Gigya.Socialize.SDK
 {
@@ -320,9 +322,8 @@ namespace Gigya.Socialize.SDK
 
         static object[] Deserialize(string json)
         {
-            JavaScriptSerializer ds = new JavaScriptSerializer();
-            ds.MaxJsonLength = 50 * 1024 * 1024;
-            return (object[])ds.DeserializeObject(json);
+            var maxJsonLength = 50 * 1024 * 1024;
+            return json.FromJson<object[]>();
         }
 
         internal object[] ToObjectArray()
@@ -349,8 +350,7 @@ namespace Gigya.Socialize.SDK
         public override string ToString()
         {
             object[] obj = this.ToObjectArray();
-            string ret = new JavaScriptSerializer().Serialize(obj);
-            return ret;
+            return obj.ToJson();
         }
     }
 }

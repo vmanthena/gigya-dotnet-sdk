@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
-using System.Web.Script.Serialization;
+
+using Gigya.Socialize.SDK.Json.Extensions;
+
 
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable ClassNeverInstantiated.Global
@@ -25,11 +28,9 @@ namespace Gigya.Socialize.SDK.Internals
 
     internal class JwtUtils
     {
-        private static readonly JavaScriptSerializer _deserializer = new JavaScriptSerializer();
-
         private static readonly Dictionary<string, KeyValuePair<string, DateTime>> _publicKeysCache = new Dictionary<string, KeyValuePair<string, DateTime>>(StringComparer.InvariantCultureIgnoreCase);
 
-        internal static T Deserialize<T>(string sourceBase64) => _deserializer.Deserialize<T>(sourceBase64.FromBase64UrlString().GetString());
+        internal static T Deserialize<T>(string sourceBase64) => sourceBase64.FromBase64UrlString().GetString().FromJson<T>();
 
         internal static T SafeNoException<T>(Func<T> func)
         {
@@ -54,7 +55,7 @@ namespace Gigya.Socialize.SDK.Internals
         {
             try
             {
-                var jPubKey = _deserializer.Deserialize<PublicKeyParams>(jwk);
+                var jPubKey = jwk.FromJson<PublicKeyParams>();
                 var n = jPubKey.n.FromBase64UrlString();
                 var e = jPubKey.e.FromBase64UrlString();
                 var rsa = new RSACryptoServiceProvider();
@@ -81,32 +82,42 @@ namespace Gigya.Socialize.SDK.Internals
         internal static string FetchPublicKey(string kid, string apiDomain)
         {
             var resourceUri = $"https://accounts.{apiDomain}/accounts.getJWTPublicKey?V2=true";
-            var request = (HttpWebRequest)WebRequest.Create(resourceUri);
-            request.Timeout = 30_000;
-            request.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
-            request.Method = "GET";
-            request.KeepAlive = false;
-            request.ServicePoint.Expect100Continue = false;
 
-            GSResponse response;
-            using (var webResponse = (HttpWebResponse)request.GetResponse())
-            using (var sr = new StreamReader(webResponse.GetResponseStream(), Encoding.UTF8))
-                response = new GSResponse(method:request.Method, responseText: sr.ReadToEnd(), logSoFar: null);
+            //var request = (HttpWebRequest)WebRequest.Create(resourceUri);
+            //request.Timeout = 30_000;
+            //request.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
+            //request.Method = "GET";
+            //request.KeepAlive = false;
+            //request.ServicePoint.Expect100Continue = false;
 
-            if (response.GetErrorCode() == 0)
+
+
+
+            using (var httpClient = GigyaHttpClient.Instance)
             {
-                GSArray keys = response.GetArray("keys", null);
-                
-                if (keys == null || keys.Length == 0)
-                    return null; // Failed to obtain JWK from response data OR data is empty
 
-                foreach (object key in keys)
-                    if (key is GSObject)
+
+                GSResponse response;
+                using (var webResponse = httpClient.GetAsync(resourceUri).GetAwaiter().GetResult())
+                {
+                    webResponse.EnsureSuccessStatusCode();
+                    response = new GSResponse("GET", webResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult(), logSoFar: null);
+                    if (response.GetErrorCode() == 0)
                     {
-                        string jwtKid = ((GSObject)key).GetString("kid", null);
-                        if (jwtKid != null && jwtKid == kid)
-                            return ((GSObject)key).ToJsonString();
+                        GSArray keys = response.GetArray("keys", null);
+
+                        if (keys == null || keys.Length == 0)
+                            return null; // Failed to obtain JWK from response data OR data is empty
+
+                        foreach (object key in keys)
+                            if (key is GSObject)
+                            {
+                                string jwtKid = ((GSObject)key).GetString("kid", null);
+                                if (jwtKid != null && jwtKid == kid)
+                                    return ((GSObject)key).ToJsonString();
+                            }
                     }
+                }
             }
 
             return null;

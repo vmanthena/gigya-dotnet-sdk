@@ -5,12 +5,21 @@ namespace SDK_Tester
 {
     public class AuthRequestTester
     {
-        private const string ApiDomain = "";
-        
-        private const string ApiKey = "";
-        private const string UserKey = "";
+        /*
+        _____   _        __        ____    _   _   _       __     __
+       |_   _| | |      /_ |      / __ \  | \ | | | |      \ \   / /
+         | |   | |       | |     | |  | | |  \| | | |       \ \_/ / 
+         | |   | |       | |     | |  | | | . ` | | |        \   /  
+        _| |_  | |____   | |     | |__| | | |\  | | |____     | |   
+       |_____| |______|  |_|      \____/  |_| \_| |______|    |_|   
 
-        private const string PrivateKey = "";
+      */
+        string apiDomain = "il1.gigya.com";
+        private const string ApiDomain = "....";
+        private const string ApiKey = "....";
+        private const string UserKey = "....";
+        private const string PrivateKey = "....";
+        const string secretKey = "....";
 
         public void Run()
         {

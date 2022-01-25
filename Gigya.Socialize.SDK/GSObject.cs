@@ -6,11 +6,15 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Web;
-using System.Web.Script.Serialization;
+
+using Gigya.Socialize.SDK.Json.Extensions;
+using Gigya.Socialize.SDK.DeepCopy.Extensions;
+using System.Diagnostics;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace Gigya.Socialize.SDK
 {
@@ -60,27 +64,30 @@ namespace Gigya.Socialize.SDK
             {
                 key = kvp.Key;
                 value = kvp.Value;
-
                 if (value == null)
                     this.Put(key, value); // null values are allowed
                 else if (value is decimal)
                     this.Put(key, (double)(decimal)value);
                 else if (value.GetType().IsPrimitive || value is string)
                     this.Put(key, value);
-                else if (value is JSONObject) // value itself is a json object
+                else if (value is JSONObject jSONObject) // value itself is a json object
                 {
                     // Create a new GSObject to put as the value of the current key. the source for this child is the current value
-                    GSObject child = new GSObject((JSONObject)value);
+                    GSObject child = new GSObject(jSONObject);
                     this.Put(key, child);
                 }
-                else if (value is JSONArray) // value is an array
+                else if (value is JSONArray jSONArray) // value is an array
                 {
-                    GSArray childArray = new GSArray((JSONArray)value);
+                    GSArray childArray = new GSArray(jSONArray);
                     this.Put(key, childArray);
+                }
+                else
+                {
+                    //Trace.TraceWarning($"{key}: {kvp.Value}({kvp.Value.GetType().FullName}) found:");
+                    this.Put(key, kvp.Value);
                 }
             }
         }
-
         private void ConstructFromTypedClass(object obj)
         {
             if (null == obj) return;
@@ -405,7 +412,7 @@ namespace Gigya.Socialize.SDK
 
 
         /* GET GSOBJECT */
-        public T GetObject<T>(string key) where T : class,new()
+        public T GetObject<T>(string key) where T : class, new()
         {
             GSObject obj = GetObject(key, null);
             if (null != obj)
@@ -445,7 +452,7 @@ namespace Gigya.Socialize.SDK
 
 
         /* GET GSOBJECT[] */
-        public IEnumerable<T> GetArray<T>(string key) where T : class,new()
+        public IEnumerable<T> GetArray<T>(string key) where T : class, new()
         {
             GSArray array = GetArray(key);
             return array.Cast<T>();
@@ -532,7 +539,7 @@ namespace Gigya.Socialize.SDK
                 string value = parameter.Substring(indexOf + 1);
                 try
                 {
-                    this.Put(key, HttpUtility.UrlDecode(value, Encoding.UTF8));
+                    _ = this.Put(key, WebUtility.UrlDecode(value));
                 }
                 catch (Exception) { }
             }
@@ -589,34 +596,18 @@ namespace Gigya.Socialize.SDK
         /// <returns></returns>
         public GSObject Clone()
         {
-            System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formater = null;
-            System.IO.MemoryStream stream = null;
-            GSObject ret = null;
-            try
-            {
-                // Serialize object
-                formater = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                stream = new System.IO.MemoryStream();
-                formater.Serialize(stream, this);
-
-                // Deserialize it
-                stream.Position = 0;
-                ret = (GSObject)formater.Deserialize(stream);
-            }
-            catch (Exception)
-            {
-                if (stream != null)
-                    stream.Close();
-            }
-
-            return ret;
+            var result = this.Copy();
+            return result;
         }
         #endregion
 
         #region Cast
-        public T Cast<T>() where T : class,new()
+        public T Cast<T>()
+            where T : class, new()
+
         {
-            return (T)Cast(typeof(T));
+            var castedValue = this.Clone();
+            return castedValue as T;
         }
 
         internal object Cast(Type requestedType)
@@ -736,6 +727,7 @@ namespace Gigya.Socialize.SDK
         {
             object val;
             // Search for the key
+
             if (this._map.TryGetValue(key, out val) /* key was found */)
             {
                 if (val == null) return (T)val;
@@ -743,9 +735,16 @@ namespace Gigya.Socialize.SDK
                 Type t = typeof(T);
                 if (t == typeof(string))
                     val = val.ToString();
-                else if (val.GetType() == typeof(string))
+                else if (val.GetType().IsPrimitive)
                 {
-                    string st = val as string;
+                    try
+                    {
+
+                        var result = (T)val;
+                        return result;
+                    }
+                    catch { }
+                    var st = val.ToString() ?? (default(T).ToString());
                     if (t == typeof(int))
                         val = int.Parse(st);
                     else if (t == typeof(long))
@@ -756,6 +755,10 @@ namespace Gigya.Socialize.SDK
                         val = double.Parse(st);
                     else if (t == typeof(decimal))
                         val = decimal.Parse(st);
+                }
+                else if (t == typeof(string))
+                {
+                    val = val.ToString();
                 }
 
                 return (T)val;
@@ -1002,25 +1005,100 @@ namespace Gigya.Socialize.SDK
             {
                 foreach (var obj in jsonObj)
                 {
+
+                    Debug.WriteLine($"{obj.Key}:{obj.Value.GetType().FullName}");
                     if (obj.Value is Dictionary<string, object>)
                     {
                         this[obj.Key] = new JSONObject((Dictionary<string, object>)obj.Value);
                     }
-                    else if (obj.Value is object[])
+                    else if (obj.Value is object[] objectArray)
                     {
-                        this[obj.Key] = new JSONArray((object[])obj.Value);
+                        this[obj.Key] = new JSONArray(objectArray);
                     }
                     else
-                        this[obj.Key] = obj.Value;
+                        this[obj.Key] = GetData(obj.Value);
                 }
             }
         }
+        private object GetData(object jvalue)
+        {
+            if (jvalue is JObject jsonObject)
+            {
+                var dict = GetDataFromJObject(jsonObject);
+                return new JSONObject(dict);
+            }
+            else if (jvalue is JArray jArray)
+            {
+                var array = jArray.Select(j => (object)j).ToArray();
+                return new JSONArray(array);
+            }
+            else if (jvalue is JValue jValue)
+            {
+
+                return this.GetValueForJValue(jValue);
+            }
+            else if (jvalue is string @string)
+            {
+                return @string;
+            }
+            else if (jvalue is DateTime dateTime)
+            {
+                return dateTime;
+            }
+            else
+            {
+                return jvalue;
+            }
+        }
+
+        private Object GetValueForJValue(JValue jValue)
+        {
+            switch (jValue.Type)
+            {
+                case JTokenType.None:
+                    return null;
+                case JTokenType.Object:
+                    return jValue.ToObject(typeof(Object));
+                case JTokenType.Array:
+                    return jValue.ToObject(typeof(Object[]));
+                case JTokenType.Integer:
+                    return jValue.ToObject(typeof(int));
+                case JTokenType.Float:
+                    return jValue.ToObject(typeof(float));
+                case JTokenType.Boolean:
+                    return jValue.ToObject(typeof(bool));
+                case JTokenType.Null:
+                    return null;
+                case JTokenType.Date:
+                    return jValue.ToObject(typeof(DateTime));
+                case JTokenType.Bytes:
+                    return jValue.ToObject(typeof(Byte[]));
+                case JTokenType.Guid:
+                    return jValue.ToObject(typeof(Guid));
+                case JTokenType.Uri:
+                    return jValue.ToObject(typeof(Uri));
+                case JTokenType.TimeSpan:
+                    return jValue.ToObject(typeof(TimeSpan));
+                default:
+                    return jValue.ToObject(typeof(String)); ;
+            }
+        }
+
+        private Dictionary<string, object> GetDataFromJObject(JObject valuePairs)
+        {
+            var result = new Dictionary<string, object>();
+            foreach (var pair in valuePairs)
+            {
+
+                result.Add(pair.Key, GetData(pair.Value));
+            }
+            return result;
+        }
+
 
         static Dictionary<string, object> Deserialize(string json)
         {
-            JavaScriptSerializer ds = new JavaScriptSerializer();
-            ds.MaxJsonLength = (int)GSRequest.MaxResponseSize;
-            return (Dictionary<string, object>)ds.DeserializeObject(json);
+            return json.FromJson<Dictionary<string, object>>();
         }
 
         internal SortedDictionary<string, object> ToSortedDictionary()
@@ -1030,17 +1108,17 @@ namespace Gigya.Socialize.SDK
             {
                 string key = obj.Key;
                 object val = obj.Value;
-                if (val is JSONObject)
+                if (val is JSONObject @object)
                 {
-                    ret[key] = ((JSONObject)val).ToSortedDictionary();
+                    ret[key] = @object.ToSortedDictionary();
                 }
-                else if (val is JSONArray)
+                else if (val is JSONArray @array)
                 {
-                    ret[key] = ((JSONArray)val).ToObjectArray();
+                    ret[key] = @array.ToObjectArray();
                 }
                 else
                 {
-                    ret[key] = val;
+                    ret[key] = GetData(val);
                 }
             }
             return ret;
@@ -1049,10 +1127,7 @@ namespace Gigya.Socialize.SDK
         public override string ToString()
         {
             SortedDictionary<string, object> obj = this.ToSortedDictionary();
-            var serializer = new JavaScriptSerializer();
-            serializer.MaxJsonLength = (int)GSRequest.MaxResponseSize;
-            string ret = serializer.Serialize(obj);
-            return ret;
+            return obj.ToJson();
         }
     }
 }
